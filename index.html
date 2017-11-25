@@ -43,7 +43,8 @@
         var currentLine =[];
         var frameCounter = 0;
         var leftController, rightController;
-
+        var colorRed, colorBlue, colorGreen, colorYellow;
+        var currentColor=new BABYLON.Color3(1.0,1.0,1.0);
         	// material
 	
 
@@ -54,10 +55,14 @@
         var engine = new BABYLON.Engine(canvas, true);
         // createScene function that creates and return the scene
         var createScene = function () {
-            // create a basic BJS Scene object
+            colorBlue = new BABYLON.Color3(0,0,1.0);
+           colorGreen = new BABYLON.Color3(0,1.0,0);
+           colorRed = new BABYLON.Color3(1.0,0,0);
+           colorYellow = new BABYLON.Color3(1.0,1.0,0);
+            // create a basic BJS Scene object 
             var scene = new BABYLON.Scene(engine);
 
-           
+         
 
             VRHelper = scene.createDefaultVRExperience();
             console.log("VR up")
@@ -67,10 +72,27 @@
                 if (webVrController.hand === "left") {
                     console.log("left controller enabled");
                     leftController = webVrController;
+                    leftController.onPadValuesChangedObservable.add((stateObject) =>{
+                        if(Math.abs(stateObject.x) >0.8){
+                            currentColor=stateObject.x<0?colorBlue:colorGreen
+
+                        }
+                        else if(Math.abs(stateObject.y)>0.8){
+                            currentColor=stateObject.y<0?colorRed:colorYellow
+                        }
+                        console.log(stateObject);
+                    });
+                    leftController.onMainButtonStateChangedObservable.add((stateObject) => {
+                        console.log(stateObject);
+                    });
+
                 } else {
                     rightController = webVrController;
                 }
             }
+
+         
+            
 
     
             scene.registerBeforeRender(function(){
@@ -81,8 +103,6 @@
             
                     frameCounter = 0;  
                     if(leftController&&leftController.mesh){
-                        console.log("point added");
-                        console.log(leftController.mesh.absolutePosition)
                         
                         currentLine.push(new BABYLON.Vector3(
                             leftController.mesh.absolutePosition.x,
@@ -92,14 +112,13 @@
                     }
                    
                     if(currentLine.length>2){
-                        console.log("ribbon created");
                         var bezier=BABYLON.Curve3.CreateQuadraticBezier(currentLine[0],currentLine[1],currentLine[2],3);
                         var ribbon = BABYLON.MeshBuilder.CreateLines("ribbon", { points: bezier.getPoints() },  scene );
-                        ribbon.material = mat;
+                        ribbon.color=currentColor;
+
                         lineCollection.push(ribbon);
                         for(var i = 0; i<2;i++)
                             currentLine.shift();
-                        console.log(currentLine.length);
                     }
                     
                     if(lineCollection.length>5){
@@ -116,11 +135,7 @@
             return scene;
         }
         var scene=createScene();
-        var mat = new BABYLON.StandardMaterial("mat1", scene);
-            mat.alpha = 1.0;
-            mat.diffuseColor = new BABYLON.Color3(0.5, 0.5, 1.0);
-            mat.backFaceCulling = false;
-            mat.wireframe = true;
+     
         
         engine.runRenderLoop(function(){
                      

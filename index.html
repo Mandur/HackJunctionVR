@@ -8,6 +8,7 @@
     <title>Babylon - Getting Started</title>
     <!--- link to the last version of babylon -->
     <script src="babylon.js"></script>
+    <script src="http://preview.babylonjs.com/loaders/babylon.glTFFileLoader.js"></script>
     <style>
         html,
         body {
@@ -38,20 +39,31 @@
     <canvas id="renderCanvas"></canvas>
 
     <script>
-        var lineCollection;
-        var currentLine;
+        var lineCollection =[];
+        var currentLine =[];
         var frameCounter = 0;
         var leftController, rightController;
 
-        var canvas = document.querySelector('#renderCanvas')
+        	// material
+	
+
+        window.addEventListener('DOMContentLoaded', function(){
+            var canvas = document.getElementById('renderCanvas');
+            
         // load the 3D engine
         var engine = new BABYLON.Engine(canvas, true);
         // createScene function that creates and return the scene
         var createScene = function () {
             // create a basic BJS Scene object
             var scene = new BABYLON.Scene(engine);
+
+           
+
             VRHelper = scene.createDefaultVRExperience();
+            console.log("VR up")
+
             VRHelper.onControllerMeshLoaded = (webVrController) => {
+                console.log("controller up..")
                 if (webVrController.hand === "left") {
                     console.log("left controller enabled");
                     leftController = webVrController;
@@ -60,20 +72,62 @@
                 }
             }
 
-            scene.registerBeforeRender(function () {
+    
+            scene.registerBeforeRender(function(){
+                
                 frameCounter++;
-                if (frameCounter > 10) {
-                    frameCounter = 0;
-                    console.log(leftController)
-                }
+                if (frameCounter > 5) {
+
+            
+                    frameCounter = 0;  
+                    if(leftController&&leftController.mesh){
+                        console.log("point added");
+                        console.log(leftController.mesh.absolutePosition)
+                        
+                        currentLine.push(new BABYLON.Vector3(
+                            leftController.mesh.absolutePosition.x,
+                            leftController.mesh.absolutePosition.y,
+                            leftController.mesh.absolutePosition.z
+                        ));
+                    }
+                   
+                    if(currentLine.length>5){
+                        console.log("ribbon created");
+                        var ribbon = BABYLON.MeshBuilder.CreateRibbon("ribbon", { pathArray: [currentLine] },  scene );
+                        ribbon.material = mat;
+                        lineCollection.push(ribbon);
+                        for(var i = 0; i<4;i++)
+                            currentLine.shift();
+                    }
+                    
+                    if(lineCollection.length>5){
+                        lineCollection[0].dispose();
+                        lineCollection.shift();
+                    }
+
+                 
+            }
+
+
             });
+          
             return scene;
         }
+        var scene=createScene();
+        var mat = new BABYLON.StandardMaterial("mat1", scene);
+            mat.alpha = 1.0;
+            mat.diffuseColor = new BABYLON.Color3(0.5, 0.5, 1.0);
+            mat.backFaceCulling = false;
+            mat.wireframe = true;
+        
+        engine.runRenderLoop(function(){
+                     
+            scene.render();
+            });
+        });
 
 
-        createScene();
-
-
+       
     </script>
 
 </body>

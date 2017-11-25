@@ -38,67 +38,41 @@
     <canvas id="renderCanvas"></canvas>
 
     <script>
+        var lineCollection;
+        var currentLine;
+        var frameCounter = 0;
+        var leftController, rightController;
 
-        var
-            VRHelper;
+        var canvas = document.querySelector('#renderCanvas')
+        // load the 3D engine
+        var engine = new BABYLON.Engine(canvas, true);
+        // createScene function that creates and return the scene
+        var createScene = function () {
+            // create a basic BJS Scene object
+            var scene = new BABYLON.Scene(engine);
+            VRHelper = scene.createDefaultVRExperience();
+            VRHelper.onControllerMeshLoaded = (webVrController) => {
+                if (webVrController.hand === "left") {
+                    console.log("left controller enabled");
+                    leftController = webVrController;
+                } else {
+                    rightController = webVrController;
+                }
+            }
 
-        window.addEventListener('DOMContentLoaded',
-            function () {
-                var lineCollection;
-                var currentLine;
-                var frameCounter=0;
-                // get the canvas DOM element
-                var canvas = document.getElementById('renderCanvas');
-                var leftController, rightController;
-                // load the 3D engine
-                var engine = new BABYLON.Engine(canvas, true);
-                // createScene function that creates and return the scene
-                var createScene =
-                        function () {
-                            // create a basic BJS Scene object
-                            var scene = new BABYLON.Scene(engine);
-                            VRHelper = scene.createDefaultVRExperience();
-                            VRHelper.onControllerMeshLoaded = (webVrController) => {
-                                if (webVrController.hand === "left") {
-                                    leftController=webVrController;
-                                }else {
-                                    rightController=webVrController;
-                                }
-                            }
-                            return scene;
-
-                        }
-
-
-
-                // call the createScene function
-
-                var scene =createScene();
-                // run the render loop
-                engine.runRenderLoop(function () {
-                    frameCounter++;
-                    if (frameCounter>10){
-                        var test = VRHelper.leftController;
-                        frameCounter=0;
-                        console.log(test.position)
-                    }
-                    console.log(test);
-                    scene.render();
-
-                });
-
-
-
-                // the canvas/window resize event handler
-
-                window.addEventListener('resize',
-                    function () {
-
-                        engine.resize();
-
-                    });
-
+            scene.registerBeforeRender(function () {
+                frameCounter++;
+                if (frameCounter > 10) {
+                    frameCounter = 0;
+                    console.log(leftController)
+                }
             });
+            return scene;
+        }
+
+
+        createScene();
+
 
     </script>
 

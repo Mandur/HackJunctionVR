@@ -39,112 +39,229 @@
     <canvas id="renderCanvas"></canvas>
 
     <script>
-        var lineCollection =[];
-        var currentLine =[];
-        var frameCounter = 0;
+        var lineCollectionLeft = [];
+        var lineCollectionRight = [];
+        var currentLineLeft = [];
+        var currentLineRight = [];
+        var frameCounterLeft = 0, frameCounterRight = 0;
         var leftController, rightController;
-        var colorRed, colorBlue, colorGreen, colorYellow;
-        var currentColor=new BABYLON.Color3(1.0,1.0,1.0);
-        	// material
-	
+        var currentColorLeft = new BABYLON.Color3(1.0, 1.0, 1.0);
+        var currentColorRight = new BABYLON.Color3(1.0, 1.0, 1.0);
+        var isDrawingLeft = false, wasDrawingLeft;
+        var isDrawingRight = false, wasDrawingRight;
+        var leftSphere, rightSphere;
+        var rightSphereMaterial, leftSphereMaterial;
+        // material
 
-        window.addEventListener('DOMContentLoaded', function(){
+
+        window.addEventListener('DOMContentLoaded', function () {
             var canvas = document.getElementById('renderCanvas');
-            
-        // load the 3D engine
-        var engine = new BABYLON.Engine(canvas, true);
-        // createScene function that creates and return the scene
-        var createScene = function () {
-            colorBlue = new BABYLON.Color3(0,0,1.0);
-           colorGreen = new BABYLON.Color3(0,1.0,0);
-           colorRed = new BABYLON.Color3(1.0,0,0);
-           colorYellow = new BABYLON.Color3(1.0,1.0,0);
-            // create a basic BJS Scene object 
-            var scene = new BABYLON.Scene(engine);
 
-         
-
-            VRHelper = scene.createDefaultVRExperience();
-            console.log("VR up")
-
-            VRHelper.onControllerMeshLoaded = (webVrController) => {
-                console.log("controller up..")
-                if (webVrController.hand === "left") {
-                    console.log("left controller enabled");
-                    leftController = webVrController;
-                    leftController.onPadValuesChangedObservable.add((stateObject) =>{
-                        if(Math.abs(stateObject.x) >0.8){
-                            currentColor=stateObject.x<0?colorBlue:colorGreen
-
-                        }
-                        else if(Math.abs(stateObject.y)>0.8){
-                            currentColor=stateObject.y<0?colorRed:colorYellow
-                        }
-                        console.log(stateObject);
-                    });
-                    leftController.onMainButtonStateChangedObservable.add((stateObject) => {
-                        console.log(stateObject);
-                    });
-
-                } else {
-                    rightController = webVrController;
-                }
-            }
-
-         
-            
-
-    
-            scene.registerBeforeRender(function(){
-                
-                frameCounter++;
-                if (frameCounter > 5) {
-
-            
-                    frameCounter = 0;  
-                    if(leftController&&leftController.mesh){
-                        
-                        currentLine.push(new BABYLON.Vector3(
-                            leftController.mesh.absolutePosition.x,
-                            leftController.mesh.absolutePosition.y,
-                            leftController.mesh.absolutePosition.z
-                        ));
-                    }
-                   
-                    if(currentLine.length>2){
-                        var bezier=BABYLON.Curve3.CreateQuadraticBezier(currentLine[0],currentLine[1],currentLine[2],3);
-                        var ribbon = BABYLON.MeshBuilder.CreateLines("ribbon", { points: bezier.getPoints() },  scene );
-                        ribbon.color=currentColor;
-
-                        lineCollection.push(ribbon);
-                        for(var i = 0; i<2;i++)
-                            currentLine.shift();
-                    }
-                    
-                    if(lineCollection.length>5){
-                        lineCollection[0].dispose();
-                        lineCollection.shift();
-                    }
-
-                 
-            }
-
-
-            });
+            // load the 3D engine
+            var engine = new BABYLON.Engine(canvas, true);
+            // createScene function that creates and return the scene
+            var createScene = function () {
           
-            return scene;
-        }
-        var scene=createScene();
-     
-        
-        engine.runRenderLoop(function(){
-                     
-            scene.render();
+                // create a basic BJS Scene object 
+                var scene = new BABYLON.Scene(engine);
+
+                var light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+
+                VRHelper = scene.createDefaultVRExperience();
+                console.log("VR up");
+
+
+                VRHelper.onControllerMeshLoaded = (webVrController) => {
+                    console.log("controller up..")
+                    if (webVrController.hand === "left") {
+                        leftSphere = BABYLON.Mesh.CreateSphere("left", 16, 0.1, scene);
+                        console.log("left controller enabled");
+                        leftController = webVrController;
+                        var controllerMesh = leftController.mesh;
+                        var childMeshes = controllerMesh.getChildMeshes();
+
+                        for (var i = 0; i < childMeshes.length; i++) {
+                            if (childMeshes[i].name === "POINTING_POSE") {
+                                controllerMesh = childMeshes[i];
+                                break;
+                            }
+                        }
+
+                        leftSphere.parent = controllerMesh;
+                        leftSphere.locallyTranslate(new BABYLON.Vector3(0.02,-0.02,-0.03));
+
+                        leftSphereMaterial= new BABYLON.StandardMaterial("leftSphereMaterial", scene);
+	                    leftSphereMaterial.diffuseColor = new BABYLON.Color3(1, 1, 1);
+                        leftSphere.material=leftSphereMaterial;
+                        leftController.onPadValuesChangedObservable.add((stateObject) => {
+
+                            var rgbArray = coordsToRgb(stateObject.x, stateObject.y);
+                            currentColorLeft = new BABYLON.Color3(rgbArray[0], rgbArray[1], rgbArray[2]);
+                            leftSphereMaterial.diffuseColor =currentColorLeft;
+                        });
+                        leftController.onMainButtonStateChangedObservable.add((stateObject) => {
+                            if (stateObject.pressed == true) {
+                                isDrawingLeft = true;
+                            } else {
+                                isDrawingLeft = false;
+                                wasDrawingLeft = 1;
+                            }
+                        });
+
+                    } else {
+                        rightSphere = BABYLON.Mesh.CreateSphere("right", 16, 0.1, scene);
+
+                        rightController = webVrController;
+                        var controllerRightMesh = rightController.mesh;
+                        var childRightMeshes = controllerRightMesh.getChildMeshes();
+
+                        for (var i = 0; i < childRightMeshes.length; i++) {
+                            if (childRightMeshes[i].name === "POINTING_POSE") {
+                                controllerRightMesh = childRightMeshes[i];
+                                break;
+                            }
+                        }
+
+                        rightSphere.parent = controllerRightMesh;
+                        rightSphere.locallyTranslate(new BABYLON.Vector3(-0.02,-0.02,-0.03));
+                        rightSphereMaterial= new BABYLON.StandardMaterial("rightSphereMaterial", scene);
+	                    rightSphereMaterial.diffuseColor = new BABYLON.Color3(1, 1, 1);
+                        rightSphere.material=rightSphereMaterial;
+
+                        rightController.onPadValuesChangedObservable.add((stateObject) => {
+                        
+                            var rgbArray = coordsToRgb(stateObject.x, stateObject.y);
+                            currentColorRight = new BABYLON.Color3(rgbArray[0], rgbArray[1], rgbArray[2]);
+                            rightSphereMaterial.diffuseColor =currentColorRight;
+                         
+                        }); 
+                        rightController.onMainButtonStateChangedObservable.add((stateObject) => {
+                            if (stateObject.pressed == true) {
+                                isDrawingRight = true;
+                            } else {
+                                isDrawingRight = false;
+                                wasDrawingRight = 1;
+                            }
+                        });
+                    }
+                }
+                function coordsToRgb(x, y) {
+                    var r, g, b;
+                    if (x === 0)
+                        x = 0.0001; //can't divide by 0
+
+                    var angle = Math.atan(y / x) + (Math.PI / 2);
+                    var h = angle / (2 * Math.PI), s = 1, l = .5;
+
+                    var hue2rgb = function hue2rgb(p, q, t) {
+                        if (t < 0) t += 1;
+                        if (t > 1) t -= 1;
+                        if (t < 1 / 6) return p + (q - p) * 6 * t;
+                        if (t < 1 / 2) return q;
+                        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+                        return p;
+                    }
+
+                    var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+                    var p = 2 * l - q;
+                    r = hue2rgb(p, q, h + 1 / 3);
+                    g = hue2rgb(p, q, h);
+                    b = hue2rgb(p, q, h - 1 / 3);
+
+                    return [Math.round(r * 10) / 10, Math.round(g * 10) / 10, Math.round(b * 10) / 10];
+                }
+
+                function drawLeft() {
+                    frameCounterLeft++;
+                    if (isDrawingLeft) {
+                        if (wasDrawingLeft) {
+                            currentLineLeft.shift();
+                            wasDrawingLeft = false;
+                        }
+                        frameCounterLeft = 0;
+
+                        currentLineLeft.push(new BABYLON.Vector3(
+                            leftSphere.absolutePosition.x,
+                            leftSphere.absolutePosition.y,
+                            leftSphere.absolutePosition.z
+                        ));
+
+                        if (currentLineLeft.length > 2) {
+                            // var bezier=BABYLON.Curve3.CreateQuadraticBezier(currentLineLeft[0],currentLineLeft[1],currentLineLeft[2],3);
+                            var ribbon = BABYLON.MeshBuilder.CreateLines("ribbon", { points: currentLineLeft }, scene);
+                            ribbon.color = currentColorLeft;
+
+                            lineCollectionLeft.push(ribbon);
+                            for (var i = 0; i < 2; i++)
+                                currentLineLeft.shift();
+                        }
+                        wasDrawingLeft = 0;
+
+                        if (lineCollectionLeft.length > 30) {
+                            lineCollectionLeft[0].dispose();
+                            lineCollectionLeft.shift();
+                        }
+                    }
+                }
+
+                function drawRight() {
+                    frameCounterRight++;
+                    if (isDrawingRight) {
+                        if (wasDrawingRight) {
+                            currentLineRight.shift();
+                            wasDrawingRight = false;
+                        }
+                        frameCounter = 0;
+
+                        currentLineRight.push(new BABYLON.Vector3(
+                            rightSphere.absolutePosition.x,
+                            rightSphere.absolutePosition.y,
+                            rightSphere.absolutePosition.z
+                        ));
+
+
+                        if (currentLineRight.length > 2) {
+                            var ribbon = BABYLON.MeshBuilder.CreateLines("ribbon", { points: currentLineRight }, scene);
+                            ribbon.color = currentColorRight;
+                          
+
+                            lineCollectionRight.push(ribbon);
+                            for (var i = 0; i < 2; i++)
+                                currentLineRight.shift();
+                        }
+                        wasDrawingRight = 0;
+
+                        if (lineCollectionRight.length > 30) {
+                            lineCollectionRight[0].dispose();
+                            lineCollectionRight.shift();
+                        }
+
+                    }
+
+
+                }
+
+                scene.registerBeforeRender(function () {
+                    if (leftController && leftController.mesh)
+                        drawLeft();
+                    if (rightController && rightController.mesh)
+                        drawRight();
+                });
+
+                return scene;
+            }
+
+            var scene = createScene();
+
+
+            engine.runRenderLoop(function () {
+
+                scene.render();
+
             });
+
         });
 
-
-       
     </script>
 
 </body>

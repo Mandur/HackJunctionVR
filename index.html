@@ -52,6 +52,7 @@
         var leftSphere, rightSphere;
         var rightSphereMaterial, leftSphereMaterial;
         // material
+        var isDeletingRight=false;
 
 
         window.addEventListener('DOMContentLoaded', function () {
@@ -61,7 +62,7 @@
             var engine = new BABYLON.Engine(canvas, true);
             // createScene function that creates and return the scene
             var createScene = function () {
-          
+
                 // create a basic BJS Scene object 
                 var scene = new BABYLON.Scene(engine);
 
@@ -88,16 +89,16 @@
                         }
 
                         leftSphere.parent = controllerMesh;
-                        leftSphere.locallyTranslate(new BABYLON.Vector3(0.02,-0.02,-0.03));
+                        leftSphere.locallyTranslate(new BABYLON.Vector3(0.02, -0.02, -0.03));
 
-                        leftSphereMaterial= new BABYLON.StandardMaterial("leftSphereMaterial", scene);
-	                    leftSphereMaterial.diffuseColor = new BABYLON.Color3(1, 1, 1);
-                        leftSphere.material=leftSphereMaterial;
+                        leftSphereMaterial = new BABYLON.StandardMaterial("leftSphereMaterial", scene);
+                        leftSphereMaterial.diffuseColor = new BABYLON.Color3(1, 1, 1);
+                        leftSphere.material = leftSphereMaterial;
                         leftController.onPadValuesChangedObservable.add((stateObject) => {
 
                             var rgbArray = coordsToRgb(stateObject.x, stateObject.y);
                             currentColorLeft = new BABYLON.Color3(rgbArray[0], rgbArray[1], rgbArray[2]);
-                            leftSphereMaterial.diffuseColor =currentColorLeft;
+                            leftSphereMaterial.diffuseColor = currentColorLeft;
                         });
                         leftController.onMainButtonStateChangedObservable.add((stateObject) => {
                             if (stateObject.pressed == true) {
@@ -123,18 +124,28 @@
                         }
 
                         rightSphere.parent = controllerRightMesh;
-                        rightSphere.locallyTranslate(new BABYLON.Vector3(-0.02,-0.02,-0.03));
-                        rightSphereMaterial= new BABYLON.StandardMaterial("rightSphereMaterial", scene);
-	                    rightSphereMaterial.diffuseColor = new BABYLON.Color3(1, 1, 1);
-                        rightSphere.material=rightSphereMaterial;
+                        rightSphere.locallyTranslate(new BABYLON.Vector3(-0.02, -0.02, -0.03));
+                        rightSphereMaterial = new BABYLON.StandardMaterial("rightSphereMaterial", scene);
+                        rightSphereMaterial.diffuseColor = new BABYLON.Color3(1, 1, 1);
+                        rightSphere.material = rightSphereMaterial;
 
                         rightController.onPadValuesChangedObservable.add((stateObject) => {
-                        
+
                             var rgbArray = coordsToRgb(stateObject.x, stateObject.y);
                             currentColorRight = new BABYLON.Color3(rgbArray[0], rgbArray[1], rgbArray[2]);
-                            rightSphereMaterial.diffuseColor =currentColorRight;
-                         
-                        }); 
+                            rightSphereMaterial.diffuseColor = currentColorRight;
+
+                        });
+
+                        rightController.onTriggerStateChangedObservable.add((stateObject) => {
+                            wasDrawingRight = 0;
+                        
+                            if(stateObject.pressed==true)
+                                isDeletingRight=true;
+                                else
+                                isDeletingRight=false;
+
+                        });
                         rightController.onMainButtonStateChangedObservable.add((stateObject) => {
                             if (stateObject.pressed == true) {
                                 isDrawingRight = true;
@@ -220,10 +231,9 @@
                         ));
 
 
-                        if (currentLineRight.length > 2) {
+                        if (currentLineRight.length > 10) {
                             var ribbon = BABYLON.MeshBuilder.CreateLines("ribbon", { points: currentLineRight }, scene);
                             ribbon.color = currentColorRight;
-                          
 
                             lineCollectionRight.push(ribbon);
                             for (var i = 0; i < 2; i++)
@@ -231,10 +241,6 @@
                         }
                         wasDrawingRight = 0;
 
-                        if (lineCollectionRight.length > 30) {
-                            lineCollectionRight[0].dispose();
-                            lineCollectionRight.shift();
-                        }
 
                     }
 
@@ -242,10 +248,26 @@
                 }
 
                 scene.registerBeforeRender(function () {
-                    if (leftController && leftController.mesh)
+                    if (leftController && leftController.mesh){
+
                         drawLeft();
-                    if (rightController && rightController.mesh)
-                        drawRight();
+
+                    }
+                    if (rightController && rightController.mesh) {
+                        if(isDeletingRight){
+                            lineCollectionRight.forEach((element, index) => {
+                                if (rightController.mesh.intersectsMesh(element,false)) {
+                                    lineCollectionRight.splice(index, 1);
+                                    element.dispose();
+                                }
+                            });
+                        }else
+                            drawRight();
+
+
+                    }
+
+
                 });
 
                 return scene;
